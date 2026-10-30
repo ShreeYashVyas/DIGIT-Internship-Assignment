@@ -92,7 +92,7 @@ Run backend tests:
 
     npm --prefix backend test
 
-Tests cover adaptive rules, personalization, tutor prompt behaviour, response parsing, Gemini request construction, and missing API-key handling. The frontend production build is checked by GitHub Actions.
+Tests cover adaptive rules, question selection and difficulty fallback, no-repeat/exhaustion behaviour, answer-key privacy in question payloads, personalization, tutor prompt behaviour, response parsing, Gemini request construction, and missing API-key handling. The frontend production build is checked by GitHub Actions.
 
 ## Known limitations
 - No authentication or multi-user account management; the current app uses a demo learner ID.
