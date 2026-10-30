@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const connectDatabase = require('./config/db');
 const quizRoutes = require('./routes/quiz');
 const progressRoutes = require('./routes/progress');
+const assistantRoutes = require('./routes/assistant');
 
 const app = express();
 const port = Number(process.env.PORT) || 5000;
@@ -21,6 +22,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/quiz', quizRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/assistant', assistantRoutes);
 app.use((req, res) => res.status(404).json({ message: 'API route not found.' }));
 app.use((error, req, res, next) => {
   console.error(error);

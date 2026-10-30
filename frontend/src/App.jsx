@@ -4,7 +4,7 @@ import {
   CircleHelp, Clock3, Flame, GraduationCap, LayoutDashboard, LoaderCircle,
   LogOut, Play, RefreshCw, Sparkles, Target, TrendingUp, Trophy, XCircle
 } from 'lucide-react';
-import { getHealth, getProgress, startQuiz, submitAnswer } from './api';
+import { getHealth, getProgress, startQuiz, submitAnswer, askLearningAssistant } from './api';
 
 const STUDENT_ID = 'demo-student';
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -49,7 +49,7 @@ function Dashboard({ progress, onStart, onRefresh, loading }) {
   </div>;
 }
 
-function QuizView({ question, selected, setSelected, feedback, onSubmit, onContinue, onExit, submitting, error }) {
+function QuizView({ question, selected, setSelected, feedback, onSubmit, onContinue, onExit, submitting, error, assistantPrompt, setAssistantPrompt, assistantResponse, assistantLoading, assistantError, onAskAssistant }) {
   if (!question) return null;
   return <div className="quiz-shell">
     <div className="quiz-topbar"><button className="back-button" onClick={onExit}><ArrowLeft size={16} /> Exit quiz</button><div className="quiz-progress-copy">QUESTION <strong>{question.questionNumber}</strong> OF {question.totalQuestions}</div></div>
@@ -67,6 +67,20 @@ function QuizView({ question, selected, setSelected, feedback, onSubmit, onConti
       })}</div>
       {error && <div className="inline-error">{error}</div>}
       {feedback && <div className={'feedback-box ' + (feedback.isCorrect ? 'correct' : 'incorrect')}><div className="feedback-title">{feedback.isCorrect ? <CheckCircle2 size={18} /> : <CircleHelp size={18} />}{feedback.isCorrect ? 'Nice work — that is correct!' : 'Not quite — let us learn from it.'}</div><p>{feedback.explanation}</p></div>}
+      {feedback && <section className="ai-tutor-panel">
+        <div className="ai-tutor-heading"><div><span className="eyebrow">LEVEL 4 · AI LEARNING ASSISTANT</span><h3>Want to understand this concept better?</h3></div><div className="heading-icon"><Sparkles size={17} /></div></div>
+        <div className="ai-tutor-actions">
+          <button className="secondary-button" type="button" disabled={assistantLoading} onClick={() => onAskAssistant('explain', '')}>Explain my answer</button>
+          <button className="secondary-button" type="button" disabled={assistantLoading} onClick={() => onAskAssistant('hint', '')}>Give me a hint</button>
+        </div>
+        <div className="ai-tutor-input">
+          <input value={assistantPrompt} maxLength={500} onChange={(event) => setAssistantPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && assistantPrompt.trim()) onAskAssistant('ask', assistantPrompt); }} placeholder="Ask a question about this concept..." aria-label="Ask the AI learning assistant" />
+          <button className="primary-button" type="button" disabled={assistantLoading || !assistantPrompt.trim()} onClick={() => onAskAssistant('ask', assistantPrompt)}>{assistantLoading ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />} Ask</button>
+        </div>
+        {assistantError && <div className="inline-error">{assistantError}</div>}
+        {assistantLoading && <div className="assistant-loading"><LoaderCircle size={16} className="spin" /> Your tutor is preparing an explanation...</div>}
+        {assistantResponse && <div className="assistant-response"><div className="assistant-response-title"><Sparkles size={15} /> AI tutor</div><p>{assistantResponse}</p><span>AI-generated guidance can contain mistakes. Check important concepts against your course material.</span></div>}
+      </section>}
       <div className="quiz-actions"><span className="selection-hint">{feedback ? 'Answer saved to your learning history' : selected === null ? 'Choose one answer to continue' : 'Answer selected'}</span>
         {!feedback ? <button className="primary-button" disabled={selected === null || submitting} onClick={onSubmit}>{submitting && <LoaderCircle className="spin" size={17} />} Submit answer <ArrowRight size={16} /></button> : <button className="primary-button" onClick={onContinue}>{feedback.completed ? 'View results' : 'Next question'} <ArrowRight size={16} /></button>}
       </div>
@@ -101,6 +115,10 @@ export default function App() {
   const [feedback, setFeedback] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [assistantPrompt, setAssistantPrompt] = useState('');
+  const [assistantResponse, setAssistantResponse] = useState('');
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState('');
 
   const refreshProgress = useCallback(async () => {
     setLoading(true);
@@ -138,6 +156,9 @@ export default function App() {
   async function handleSubmit() {
     if (selected === null || !attempt || !question) return;
     setSubmitting(true);
+    setAssistantResponse('');
+    setAssistantError('');
+    setAssistantPrompt('');
     setError('');
     try {
       const data = await submitAnswer(attempt, question.id, selected);
@@ -149,8 +170,33 @@ export default function App() {
     }
   }
 
+  async function handleAskAssistant(mode, prompt) {
+    if (!attempt || !question || assistantLoading) return;
+    setAssistantLoading(true);
+    setAssistantError('');
+    setAssistantResponse('');
+    try {
+      const data = await askLearningAssistant({
+        studentId: STUDENT_ID,
+        attemptId: attempt,
+        questionId: question.id,
+        mode,
+        prompt: String(prompt || '').trim()
+      });
+      setAssistantResponse(data.answer);
+      if (mode === 'ask') setAssistantPrompt('');
+    } catch (err) {
+      setAssistantError(err.message);
+    } finally {
+      setAssistantLoading(false);
+    }
+  }
+
   async function handleContinue() {
     if (!feedback) return;
+    setAssistantResponse('');
+    setAssistantError('');
+    setAssistantPrompt('');
     if (feedback.completed) {
       setResult(feedback.result);
       setQuestion(null);
@@ -165,6 +211,9 @@ export default function App() {
   }
 
   function exitQuiz() {
+    setAssistantResponse('');
+    setAssistantError('');
+    setAssistantPrompt('');
     setAttempt(null);
     setQuestion(null);
     setFeedback(null);
@@ -188,7 +237,7 @@ export default function App() {
       <header className="topbar"><div className="breadcrumb">Workspace <ChevronRight size={14} /> <strong>{activeTab === 'quiz' ? 'Adaptive quiz' : activeTab === 'results' ? 'Quiz results' : activeTab === 'history' ? 'Learning history' : 'Overview'}</strong></div><div className="topbar-right"><span className={'connection-status ' + health}><i />{health === 'connected' ? 'Database connected' : health === 'checking' ? 'Checking database' : 'Database unavailable'}</span><div className="topbar-avatar">L</div></div></header>
       {error && activeTab !== 'quiz' && <div className="global-error">{error}<button onClick={() => setError('')}>Dismiss</button></div>}
       {activeTab === 'overview' && <Dashboard progress={progress} onStart={beginQuiz} onRefresh={refreshProgress} loading={loading} />}
-      {activeTab === 'quiz' && <QuizView question={question} selected={selected} setSelected={setSelected} feedback={feedback} onSubmit={handleSubmit} onContinue={handleContinue} onExit={exitQuiz} submitting={submitting} error={error} />}
+      {activeTab === 'quiz' && <QuizView question={question} selected={selected} setSelected={setSelected} feedback={feedback} onSubmit={handleSubmit} onContinue={handleContinue} onExit={exitQuiz} submitting={submitting} error={error} assistantPrompt={assistantPrompt} setAssistantPrompt={setAssistantPrompt} assistantResponse={assistantResponse} assistantLoading={assistantLoading} assistantError={assistantError} onAskAssistant={handleAskAssistant} />}
       {activeTab === 'results' && <ResultsView result={result} onDashboard={() => setActiveTab('overview')} onRetry={beginQuiz} />}
       {activeTab === 'history' && <div className="page-content"><section className="welcome-row"><div><div className="eyebrow">YOUR JOURNEY</div><h1>Learning history</h1><p>Every completed quiz is a step forward.</p></div><button className="secondary-button" onClick={refreshProgress}><RefreshCw size={15} /> Refresh</button></section><div className="panel history-panel full-history"><div className="panel-heading"><div><span className="eyebrow">ALL COMPLETED ATTEMPTS</span><h2>Learning history</h2></div><span className="subtle-label">{history.length} stored records</span></div>{history.length === 0 ? <EmptyState onStart={beginQuiz} /> : history.map((item, index) => <div className="history-row" key={item.id || index}><div className="history-symbol"><GraduationCap size={17} /></div><div className="history-name"><strong>Adaptive programming quiz</strong><span>{dateLabel(item.completedAt)}</span></div><div className="history-score"><strong>{item.score}/{item.totalQuestions}</strong><span>Score</span></div><div className="history-accuracy"><strong>{item.accuracy}%</strong><span>Accuracy</span></div></div>)}</div></div>}
     </main>

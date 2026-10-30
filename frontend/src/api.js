@@ -20,3 +20,9 @@ export const submitAnswer = (attemptId, questionId, selectedOptionIndex) => requ
   '/quiz/' + encodeURIComponent(attemptId) + '/answer',
   { method: 'POST', body: JSON.stringify({ questionId, selectedOptionIndex }) }
 );
+
+
+export const askLearningAssistant = (payload) => request('/assistant/help', {
+  method: 'POST',
+  body: JSON.stringify(payload)
+});
