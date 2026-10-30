@@ -10,7 +10,7 @@ const STUDENT_ID = 'demo-student';
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 function StatCard({ icon: Icon, label, value, note, tone }) {
-  return <div className={'stat-card ' + tone}><div className="stat-icon"><Icon size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>;
+  return <div className="stat-card"><div className={'stat-icon ' + tone}><Icon size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>;
 }
 
 function EmptyState({ onStart }) {
