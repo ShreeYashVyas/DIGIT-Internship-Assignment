@@ -13,7 +13,10 @@ router.post('/start', async (req, res, next) => {
     const count = Number(req.body.questionCount || 10);
     const targetQuestionCount = Math.max(5, Math.min(10, Number.isFinite(count) ? count : 10));
     const first = await selectUnusedQuestion(Question, 'Medium', []);
-    if (!first) return res.status(503).json({ message: 'No questions available. Run npm run seed first.' });
+
+    if (!first) {
+      return res.status(503).json({ message: 'No questions available. Run npm run seed first.' });
+    }
 
     const attempt = await QuizAttempt.create({
       studentId,
@@ -39,19 +42,24 @@ router.post('/:attemptId/answer', async (req, res, next) => {
     if (!mongoose.isValidObjectId(attemptId) || !mongoose.isValidObjectId(questionId)) {
       return res.status(400).json({ message: 'A valid attempt ID and question ID are required.' });
     }
+
     if (!Number.isInteger(selectedOptionIndex) || selectedOptionIndex < 0 || selectedOptionIndex > 3) {
       return res.status(400).json({ message: 'Choose one of the four answer options.' });
     }
 
     const attempt = await QuizAttempt.findById(attemptId);
     if (!attempt) return res.status(404).json({ message: 'Quiz attempt not found.' });
-    if (attempt.status !== 'in-progress') return res.status(409).json({ message: 'This quiz has already been completed.' });
+    if (attempt.status !== 'in-progress') {
+      return res.status(409).json({ message: 'This quiz has already been completed.' });
+    }
     if (String(attempt.currentQuestionId) !== String(questionId)) {
       return res.status(409).json({ message: 'This is not the current question for this attempt.' });
     }
 
     const question = await Question.findById(questionId);
-    if (!question || !question.active) return res.status(404).json({ message: 'Question not found or inactive.' });
+    if (!question || !question.active) {
+      return res.status(404).json({ message: 'Question not found or inactive.' });
+    }
 
     const isCorrect = selectedOptionIndex === question.correctOptionIndex;
     attempt.responses.push({
@@ -61,6 +69,8 @@ router.post('/:attemptId/answer', async (req, res, next) => {
       difficulty: question.difficulty,
       selectedOptionIndex,
       correctOptionIndex: question.correctOptionIndex,
+      selectedAnswer: question.options[selectedOptionIndex],
+      correctAnswer: question.options[question.correctOptionIndex],
       isCorrect,
       explanation: question.explanation
     });
@@ -95,6 +105,7 @@ router.post('/:attemptId/answer', async (req, res, next) => {
     }
 
     const completed = attempt.responses.length >= attempt.targetQuestionCount || !next;
+
     if (completed) {
       attempt.status = 'completed';
       attempt.currentQuestionId = null;
@@ -112,6 +123,8 @@ router.post('/:attemptId/answer', async (req, res, next) => {
         isCorrect,
         correctOptionIndex: question.correctOptionIndex,
         selectedOptionIndex,
+        selectedAnswer: question.options[selectedOptionIndex],
+        correctAnswer: question.options[question.correctOptionIndex],
         explanation: question.explanation,
         topic: question.topic,
         difficulty: question.difficulty
@@ -119,7 +132,9 @@ router.post('/:attemptId/answer', async (req, res, next) => {
       completed,
       currentDifficulty: attempt.currentDifficulty,
       progress: { answered: attempt.responses.length, total: attempt.targetQuestionCount },
-      nextQuestion: next ? publicQuestion(next, attempt.responses.length + 1, attempt.targetQuestionCount) : null,
+      nextQuestion: next
+        ? publicQuestion(next, attempt.responses.length + 1, attempt.targetQuestionCount)
+        : null,
       result: completed ? {
         score: attempt.score,
         totalQuestions: attempt.totalQuestions,
@@ -128,6 +143,8 @@ router.post('/:attemptId/answer', async (req, res, next) => {
           questionText: answer.questionText,
           topic: answer.topic,
           isCorrect: answer.isCorrect,
+          selectedAnswer: answer.selectedAnswer,
+          correctAnswer: answer.correctAnswer,
           explanation: answer.explanation
         }))
       } : null

@@ -7,6 +7,8 @@ const responseSchema = new mongoose.Schema({
   difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], required: true },
   selectedOptionIndex: { type: Number, required: true },
   correctOptionIndex: { type: Number, required: true },
+  selectedAnswer: { type: String, required: true },
+  correctAnswer: { type: String, required: true },
   isCorrect: { type: Boolean, required: true },
   explanation: { type: String, required: true },
   answeredAt: { type: Date, default: Date.now }

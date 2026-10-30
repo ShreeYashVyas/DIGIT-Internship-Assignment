@@ -13,7 +13,7 @@ A full-stack programming quiz application for the DIGIT Innovations Engineering 
 ### Level 1 — Basic full-stack quiz
 - Questions are seeded into MongoDB and retrieved through the API.
 - The backend validates selected answers and stores each response and completed attempt.
-- Students see their score, accuracy, correct answers, and explanations.
+- Students see their score, accuracy, selected answer, correct answer, and explanation.
 
 ### Level 2 — Adaptive quiz engine
 - Each question has Easy, Medium, or Hard difficulty stored in MongoDB.
@@ -24,8 +24,9 @@ A full-stack programming quiz application for the DIGIT Innovations Engineering 
 
 ### Level 3 — Personalized learning
 - Topic-level performance is calculated from persisted quiz responses.
-- The dashboard shows overall accuracy, topic strengths/weaknesses, recent attempts, and rule-based recommendations.
-- Topic status: below 50% = Needs practice; 50% to below 80% = Developing; 80% or above = Strong.
+- The dashboard shows overall accuracy, topic status, recommendations, recent attempts, and full attempt history.
+- Topic status: fewer than 3 answers = Building baseline; below 50% after 3 answers = Needs practice; 50% to below 80% = Developing; 80% or above = Strong.
+- Personalization aggregation and recommendation thresholds have automated unit tests.
 
 ### Level 4 — Advanced AI/ML
 - Not implemented. This level is optional in the assignment.
@@ -53,42 +54,37 @@ A full-stack programming quiz application for the DIGIT Innovations Engineering 
 
 7. Open http://localhost:5173. The API runs on http://localhost:5000.
 
-## Environment variables
-- PORT — backend port (default 5000)
-- MONGO_URI — MongoDB connection string
-- CLIENT_ORIGIN — allowed frontend origin (default http://localhost:5173)
-
 ## API
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | /api/health | API/database health |
-| POST | /api/quiz/start | Create an attempt and return its first question |
+| POST | /api/quiz/start | Create an attempt and return the first question |
 | POST | /api/quiz/:attemptId/answer | Check and persist an answer; return feedback and next question |
-| GET | /api/progress/:studentId | Retrieve persisted progress and recommendations |
+| GET | /api/progress/:studentId | Retrieve stored progress, recommendations, recent attempts, and full attempt history |
 
-The demo learner ID is demo-student. Authentication and multi-user account management are not included in this assignment prototype.
+The demo learner ID is demo-student. Authentication and multi-user account management are not included.
 
-## Adaptive rule
-Difficulty begins at Medium. Two consecutive correct answers move Easy → Medium or Medium → Hard. Two consecutive incorrect answers move Hard → Medium or Medium → Easy. The difficulty is capped at Easy and Hard. When the desired difficulty has no unused questions, the backend chooses an unused question at the nearest available difficulty. An attempt ends after 10 answers or when no unused questions remain.
+## Adaptive algorithm
+Difficulty begins at Medium. Two consecutive correct answers move Easy → Medium or Medium → Hard. Two consecutive incorrect answers move Hard → Medium or Medium → Easy. Difficulty is capped at Easy and Hard. If the preferred difficulty has no unused questions, the backend chooses an unused question at the nearest available difficulty. An attempt ends after 10 answers or when no unused questions remain.
 
 ## Tests
 Run backend unit tests:
    
     npm --prefix backend test
 
-The adaptive-rule tests do not need MongoDB.
+The adaptive and personalization logic tests do not require MongoDB.
 
 ## Database design
 - Question: question text, four options, correct option index, explanation, topic, difficulty.
-- QuizAttempt: learner ID, status, score, accuracy, adaptive state, and submitted responses.
+- QuizAttempt: learner ID, status, score, accuracy, adaptive state, and each submitted response.
 
-The question bank in backend/src/data/questions.js is seed input only. Runtime questions are fetched from MongoDB. The frontend does not use localStorage or sessionStorage for application records.
+The question bank in backend/src/data/questions.js is seed input only. Runtime quiz questions are retrieved from MongoDB. The frontend does not use localStorage or sessionStorage for application records.
 
 ## Known limitations
 - No authentication or multi-user account management.
-- Recommendations are deterministic rules, not AI-generated.
+- Recommendations are deterministic rules, not LLM-generated.
 - Level 4 AI/ML is not implemented.
-- MongoDB must be configured and seeded before the end-to-end demo.
+- MongoDB must be configured and seeded before an end-to-end demonstration.
 
 ## AI assistance disclosure
-AI assistance was used to accelerate scaffolding, implementation, and documentation. The project owner should review the code, run the app and tests, and be prepared to explain the models, API flow, adaptive rules, and limitations.
+AI assistance was used to accelerate scaffolding, implementation, and documentation. The project owner should review the code, run the app and tests, and be ready to explain the models, API flow, adaptive rules, and limitations.

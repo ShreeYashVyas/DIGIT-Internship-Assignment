@@ -7,10 +7,10 @@ import {
 import { getHealth, getProgress, startQuiz, submitAnswer } from './api';
 
 const STUDENT_ID = 'demo-student';
-const dateLabel = (value) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+const dateLabel = (value) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 function StatCard({ icon: Icon, label, value, note, tone }) {
-  return <div className="stat-card"><div className={'stat-icon ' + tone}><Icon size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>;
+  return <div className={'stat-card ' + tone}><div className="stat-icon"><Icon size={19} /></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>;
 }
 
 function EmptyState({ onStart }) {
@@ -34,7 +34,7 @@ function Dashboard({ progress, onStart, onRefresh, loading }) {
       <div className="panel topic-panel">
         <div className="panel-heading"><div><span className="eyebrow">KNOWLEDGE MAP</span><h2>Topic performance</h2></div><button className="icon-button" onClick={onRefresh} title="Refresh progress"><RefreshCw size={16} className={loading ? 'spin' : ''} /></button></div>
         {topics.length === 0 ? <EmptyState onStart={onStart} /> : <div className="topic-list">{topics.map((topic) => <div className="topic-row" key={topic.topic}>
-          <div className="topic-topline"><div><strong>{topic.topic}</strong><span className={'status-pill ' + (topic.status === 'Strong' ? 'good' : topic.status === 'Developing' ? 'mid' : 'needs')}>{topic.status}</span></div><strong className="topic-percent">{topic.accuracy}%</strong></div>
+          <div className="topic-topline"><div><strong>{topic.topic}</strong><span className={'status-pill ' + (topic.status === 'Strong' ? 'good' : topic.status === 'Developing' ? 'mid' : topic.status === 'Building baseline' ? 'baseline' : 'needs')}>{topic.status}</span></div><strong className="topic-percent">{topic.accuracy}%</strong></div>
           <div className="progress-track"><div className="progress-fill" style={{ width: topic.accuracy + '%' }} /></div><div className="topic-foot">{topic.correct} correct of {topic.attempted} attempted</div>
         </div>)}</div>}
       </div>
@@ -44,7 +44,7 @@ function Dashboard({ progress, onStart, onRefresh, loading }) {
       </div>
     </section>
     <section className="panel history-panel"><div className="panel-heading"><div><span className="eyebrow">KEEP YOUR MOMENTUM</span><h2>Recent activity</h2></div><span className="subtle-label">Latest 5 attempts</span></div>
-      {attempts.length === 0 ? <div className="history-empty"><Clock3 size={18} /><span>No quiz attempts yet. Your completed quizzes will appear here.</span></div> : attempts.map((item, index) => <div className="history-row" key={index}><div className="history-symbol"><GraduationCap size={17} /></div><div className="history-name"><strong>Adaptive programming quiz</strong><span>{dateLabel(item.completedAt)}</span></div><div className="history-score"><strong>{item.score}/{item.totalQuestions}</strong><span>Score</span></div><div className="history-accuracy"><strong>{item.accuracy}%</strong><span>Accuracy</span></div></div>)}
+      {attempts.length === 0 ? <div className="history-empty"><Clock3 size={18} /><span>No quiz attempts yet. Your completed quizzes will appear here.</span></div> : attempts.map((item, index) => <div className="history-row" key={item.id || index}><div className="history-symbol"><GraduationCap size={17} /></div><div className="history-name"><strong>Adaptive programming quiz</strong><span>{dateLabel(item.completedAt)}</span></div><div className="history-score"><strong>{item.score}/{item.totalQuestions}</strong><span>Score</span></div><div className="history-accuracy"><strong>{item.accuracy}%</strong><span>Accuracy</span></div></div>)}
     </section>
   </div>;
 }
@@ -84,7 +84,7 @@ function ResultsView({ result, onDashboard, onRetry }) {
     <p className="result-description">Your answers have been saved. Review what went well and keep learning.</p>
     <div className="result-score"><strong>{result.score}<span>/{result.totalQuestions}</span></strong><label>Correct answers</label></div>
     <div className="result-meter"><div style={{ width: accuracy + '%' }} /></div><div className="result-accuracy">{accuracy}% <span>overall accuracy</span></div>
-    <div className="result-review"><div className="review-heading">Answer review</div>{(result.responses || []).map((response, index) => <div className="review-row" key={index}><div className={response.isCorrect ? 'review-check good' : 'review-check bad'}>{response.isCorrect ? <Check size={14} /> : <XCircle size={14} />}</div><div><strong>{response.topic}</strong><span>{response.questionText}</span></div></div>)}</div>
+    <div className="result-review"><div className="review-heading">Answer review</div>{(result.responses || []).map((response, index) => <div className="review-row" key={index}><div className={response.isCorrect ? 'review-check good' : 'review-check bad'}>{response.isCorrect ? <Check size={14} /> : <XCircle size={14} />}</div><div className="review-copy"><strong>{response.topic} · {response.questionText}</strong><span>Your answer: {response.selectedAnswer || 'Recorded'} · Correct answer: {response.correctAnswer || 'See explanation'}</span><p>{response.explanation}</p></div></div>)}</div>
     <div className="result-actions"><button className="secondary-button" onClick={onDashboard}>Back to dashboard</button><button className="primary-button" onClick={onRetry}><RefreshCw size={16} /> Try another quiz</button></div>
   </div></div>;
 }
@@ -172,6 +172,8 @@ export default function App() {
     setActiveTab('overview');
   }
 
+  const history = progress?.attemptHistory || progress?.recentAttempts || [];
+
   return <div className="app-frame">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><Brain size={21} /></div><div><strong>mindstep</strong><span>ADAPTIVE LEARNING</span></div></div>
@@ -188,7 +190,7 @@ export default function App() {
       {activeTab === 'overview' && <Dashboard progress={progress} onStart={beginQuiz} onRefresh={refreshProgress} loading={loading} />}
       {activeTab === 'quiz' && <QuizView question={question} selected={selected} setSelected={setSelected} feedback={feedback} onSubmit={handleSubmit} onContinue={handleContinue} onExit={exitQuiz} submitting={submitting} error={error} />}
       {activeTab === 'results' && <ResultsView result={result} onDashboard={() => setActiveTab('overview')} onRetry={beginQuiz} />}
-      {activeTab === 'history' && <div className="page-content"><section className="welcome-row"><div><div className="eyebrow">YOUR JOURNEY</div><h1>Learning history</h1><p>Every completed quiz is a step forward.</p></div><button className="secondary-button" onClick={refreshProgress}><RefreshCw size={15} /> Refresh</button></section><div className="panel history-panel full-history"><div className="panel-heading"><div><span className="eyebrow">RECENT ATTEMPTS</span><h2>Completed quizzes</h2></div><span className="subtle-label">{(progress?.recentAttempts || []).length} recent records</span></div>{(progress?.recentAttempts || []).length === 0 ? <EmptyState onStart={beginQuiz} /> : progress.recentAttempts.map((item, index) => <div className="history-row" key={index}><div className="history-symbol"><GraduationCap size={17} /></div><div className="history-name"><strong>Adaptive programming quiz</strong><span>{dateLabel(item.completedAt)}</span></div><div className="history-score"><strong>{item.score}/{item.totalQuestions}</strong><span>Score</span></div><div className="history-accuracy"><strong>{item.accuracy}%</strong><span>Accuracy</span></div></div>)}</div></div>}
+      {activeTab === 'history' && <div className="page-content"><section className="welcome-row"><div><div className="eyebrow">YOUR JOURNEY</div><h1>Learning history</h1><p>Every completed quiz is a step forward.</p></div><button className="secondary-button" onClick={refreshProgress}><RefreshCw size={15} /> Refresh</button></section><div className="panel history-panel full-history"><div className="panel-heading"><div><span className="eyebrow">ALL COMPLETED ATTEMPTS</span><h2>Learning history</h2></div><span className="subtle-label">{history.length} stored records</span></div>{history.length === 0 ? <EmptyState onStart={beginQuiz} /> : history.map((item, index) => <div className="history-row" key={item.id || index}><div className="history-symbol"><GraduationCap size={17} /></div><div className="history-name"><strong>Adaptive programming quiz</strong><span>{dateLabel(item.completedAt)}</span></div><div className="history-score"><strong>{item.score}/{item.totalQuestions}</strong><span>Score</span></div><div className="history-accuracy"><strong>{item.accuracy}%</strong><span>Accuracy</span></div></div>)}</div></div>}
     </main>
   </div>;
 }
